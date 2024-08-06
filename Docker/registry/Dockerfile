@@ -4,7 +4,7 @@ FROM golang:alpine
 # Imposta la directory di lavoro all'interno del container
 WORKDIR /app
 
-
+#prova
 
 # Copia i file delle dipendenze Go nel container
 COPY ../../go.mod /app/go.mod
