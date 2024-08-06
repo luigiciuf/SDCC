@@ -1,0 +1,84 @@
+version: "3"
+
+services:
+  registry:
+    build:
+      context: .
+      dockerfile: /Docker/registry/Dockerfile
+    ports:
+      - "2020:2020"
+    volumes:
+      - C:\Users\luigi\GolandProjects\SDCC_Gossiping\docker-compose.yml:/app/config/docker-compose.yml
+    networks:
+      - my_network
+    cap_add:
+      - NET_ADMIN
+
+  node1:
+    build:
+      context: .
+      dockerfile: Docker/node/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - NODE_ID=node1
+    volumes:
+      - C:\Users\luigi\GolandProjects\SDCC_Gossiping\docker-compose.yml:/app/config/docker-compose.yml
+    networks:
+      - my_network
+    depends_on:
+      - registry
+    cap_add:
+      - NET_ADMIN
+
+  node2:
+    build:
+      context: .
+      dockerfile: Docker/node/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - NODE_ID=node2
+    volumes:
+      - C:\Users\luigi\GolandProjects\SDCC_Gossiping\docker-compose.yml:/app/config/docker-compose.yml
+    networks:
+      - my_network
+    depends_on:
+      - registry
+    cap_add:
+      - NET_ADMIN
+  node3:
+    build:
+      context: .
+      dockerfile: Docker/node/Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - NODE_ID=node3
+    volumes:
+      - C:\Users\luigi\GolandProjects\SDCC_Gossiping\docker-compose.yml:/app/config/docker-compose.yml
+    networks:
+      - my_network
+    depends_on:
+      - registry
+    cap_add:
+      - NET_ADMIN
+  node4:
+    build:
+      context: .
+      dockerfile: Docker/node/Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      - NODE_ID=node4
+    volumes:
+      - C:\Users\luigi\GolandProjects\SDCC_Gossiping\docker-compose.yml:/app/config/docker-compose.yml
+    networks:
+      - my_network
+    depends_on:
+      - registry
+    cap_add:
+      - NET_ADMIN
+networks:
+  my_network:
+    driver: bridge
