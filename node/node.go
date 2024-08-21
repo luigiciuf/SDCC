@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -34,8 +35,18 @@ func getLocalIPAddress() (string, error) {
 	return localAddr.IP.String(), nil // Restituisce l'indirizzo IP
 }
 
+// Funzione per generare un ritardo casuale usando una distribuzione normale
+func simulateNetworkDelay(mean, stddev float64) {
+	delay := rand.NormFloat64()*stddev + mean
+	if delay < 0 {
+		delay = 0 // Evita ritardi negativi
+	}
+	time.Sleep(time.Duration(delay) * time.Millisecond)
+}
+
 // Funzione per inviare un ping al registro
 func sendPingToRegistry(registryAddress, nodeID string, coordinates *HVector) error {
+	simulateNetworkDelay(1000, 20) // Simula un ritardo medio di 100ms con deviazione standard di 20ms
 	url := fmt.Sprintf("http://%s/ping?id=%s&x=%f&y=%f&h=%f", registryAddress, nodeID, coordinates.X, coordinates.Y, coordinates.H)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -102,6 +113,7 @@ func getNodeAddresses(registryAddress string, currentNodeID string) ([]string, e
 
 // Funzione per contattare altri nodi e fare gossiping
 func (n *Node) contactOtherNodes(registryAddress string) {
+	simulateNetworkDelay(1000, 20)                                // Simula un ritardo medio di 100ms con deviazione standard di 20ms
 	nodeAddresses, err := getNodeAddresses(registryAddress, n.ID) // Ottieni la lista dei nodi
 	if err != nil {
 		fmt.Printf("Error getting node addresses: %v\n", err)
@@ -115,23 +127,51 @@ func (n *Node) contactOtherNodes(registryAddress string) {
 		return
 	}
 	// Esegui lo scambio di informazioni con il nodo selezionato
-	rtt, err := pingNode(selectedNode)
-	if err != nil {
-		fmt.Printf("Error pinging node %s: %v\n", selectedNode, err)
-		return
-	}
+	rtt, _, _ := pingNode(selectedNode)
 	// Aggiorna le coordinate del nodo con l'algoritmo di Vivaldi
 	n.updateCoordinate(rtt, selectedNode)
 }
 
-// Funzione per inviare un ping al nodo selezionato e ottenere il tempo di ping
-func pingNode(nodeAddress string) (time.Duration, error) {
+func pingNode(nodeAddress string) (time.Duration, *Context, error) {
+	// Simula un ritardo di rete
+	simulateNetworkDelay(1000, 20)
+
+	// Invia il ping al nodo target e ottieni le sue coordinate
 	start := time.Now()
-	_, err := http.Get(nodeAddress + "/ping") // Invia il ping al nodo
+	resp, err := http.Get(nodeAddress + "/ping")
 	if err != nil {
-		return 0, fmt.Errorf("error pinging node: %v", err)
+		return 0, nil, fmt.Errorf("error pinging node: %v", err)
 	}
-	return time.Since(start), nil // Restituisci il tempo trascorso dal ping
+	defer resp.Body.Close()
+
+	// Estrai le coordinate del nodo target dalla risposta
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, nil, fmt.Errorf("error reading response body: %v", err)
+	}
+
+	// Supponiamo che il corpo della risposta contenga le coordinate in formato appropriato
+	// Converti il corpo della risposta in coordinate e crea un Context
+	targetContext := parseResponseToContext(string(body))
+
+	// Restituisci il tempo RTT e il contesto del nodo target
+	return time.Since(start), targetContext, nil
+}
+func parseResponseToContext(responseBody string) *Context {
+	parts := strings.Split(responseBody, ",")
+	if len(parts) < 4 {
+		return nil // Invalid response
+	}
+
+	x, errX := strconv.ParseFloat(parts[1], 64)
+	y, errY := strconv.ParseFloat(parts[2], 64)
+	h, errH := strconv.ParseFloat(parts[3], 64)
+
+	if errX != nil || errY != nil || errH != nil {
+		return nil // Handle parsing errors
+	}
+
+	return NewContextFromValues(NewHVector(x, y, h), InitialError)
 }
 
 // Funzione per aggiornare le coordinate del nodo usando l'algoritmo Vivaldi
@@ -141,7 +181,10 @@ func (n *Node) updateCoordinate(rtt time.Duration, targetNode string) {
 		Vec:   NewHVector(rand.Float64(), rand.Float64(), rand.Float64()), // Placeholder per il vettore del nodo target
 		Error: InitialError,                                               // Placeholder per l'errore del nodo target
 	}
-
+	if targetContext == nil {
+		fmt.Println("Target context is nil, cannot update coordinates.")
+		return
+	}
 	n.Context.Update(float64(rtt.Milliseconds()), targetContext)
 }
 
@@ -174,13 +217,6 @@ func chooseRandomNode(nodeAddresses []string) string {
 
 	// Restituiamo l'indirizzo del nodo corrispondente all'indice scelto casualmente
 	return nodeAddresses[chosenIndex]
-}
-
-// Funzione per scambiare informazioni con un altro nodo
-func exchangeInfo(sourceNodeID, targetNodeAddress string) {
-	// Esempio di implementazione dello scambio di informazioni tra nodi
-	fmt.Printf("Node %s exchanging information with node at address: %s\n", sourceNodeID, targetNodeAddress)
-	// Esegui qui la logica per lo scambio di informazioni con il nodo selezionato
 }
 
 // Funzione per registrare il nodo al registro

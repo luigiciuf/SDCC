@@ -6,6 +6,7 @@ import "errors"
 const cc = 0.25
 const ce = 0.5
 const InitialError = 10
+const scaleFactor = 100.0 // Fattore di scala da applicare alle coordinate
 
 type Context struct {
 	Vec   *HVector
@@ -30,12 +31,16 @@ func (ctx *Context) Update(rtt float64, peer *Context) *HVector {
 	w := ctx.Error / (ctx.Error + peer.Error) // w = e_i / (e_i + e_j)
 	ab := ctx.Vec.Sub(peer.Vec)               // x_i - x_j
 	re := rtt - ab.Magnitude()                // rtt - |x_i - x_j|
-	es := math.Abs(re) / rtt                  // e_s = ||x_i - x_j| - rtt| / rtt
-	ctx.Error = es*ce*w + ctx.Error*(1-ce*w)  // e_i = e_s*c_e*w + e_i*(1 - c_e*w)
+	es := math.Abs(re) / rtt
+	if es != es || w != w || re != re { // Check for NaN values
+		return ctx.Vec
+	}
+	// e_s = ||x_i - x_j| - rtt| / rtt
+	ctx.Error = es*ce*w + ctx.Error*(1-ce*w) // e_i = e_s*c_e*w + e_i*(1 - c_e*w)
 	// ∂ = c_c * w
 	d := cc * w
 	// x_i = x_i + ∂*(rtt - |x_i - x_j|)*u(x_i - x_j)
-	ctx.Vec = ctx.Vec.Add(ab.Unit().Scale(d * re))
+	ctx.Vec = ctx.Vec.Add(ab.Unit().Scale(d * re * 100.0))
 	return ctx.Vec
 }
 
