@@ -24,7 +24,7 @@ type Coordinate struct {
 	X, Y float64
 }
 
-// Funzione per ottenere l'indirizzo IP locale del nodo
+// getLocalIPAddress recupera l'indirizzo IP locale del nodo stabilendo una connessione UDP temporanea
 func getLocalIPAddress() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80") // Connessione temporanea per ottenere l'IP
 	if err != nil {
@@ -35,7 +35,7 @@ func getLocalIPAddress() (string, error) {
 	return localAddr.IP.String(), nil // Restituisce l'indirizzo IP
 }
 
-// Funzione per generare un ritardo casuale usando una distribuzione normale
+// simulateNetworkDelay simula un ritardo di rete introducendo una pausa nell'esecuzione per un tempo generato casualmente
 func simulateNetworkDelay(mean, stddev float64) {
 	delay := rand.NormFloat64()*stddev + mean
 	if delay < 0 {
@@ -44,7 +44,7 @@ func simulateNetworkDelay(mean, stddev float64) {
 	time.Sleep(time.Duration(delay) * time.Millisecond)
 }
 
-// Funzione per inviare un ping al registro
+// sendPingToRegistry invia un ping al registro per aggiornare lo stato del nodo e le sue coordinate
 func sendPingToRegistry(registryAddress, nodeID string, coordinates *HVector) error {
 	simulateNetworkDelay(1000, 20) // Simula un ritardo medio di 100ms con deviazione standard di 20ms
 	url := fmt.Sprintf("http://%s/ping?id=%s&x=%f&y=%f&h=%f", registryAddress, nodeID, coordinates.X, coordinates.Y, coordinates.H)
@@ -61,7 +61,7 @@ func sendPingToRegistry(registryAddress, nodeID string, coordinates *HVector) er
 	return nil
 }
 
-// Funzione per ottenere la lista degli indirizzi dei nodi registrati, escludendo il nodo corrente
+// getNodeAddresses recupera la lista degli indirizzi dei nodi registrati, escludendo il nodo corrente
 func getNodeAddresses(registryAddress string, currentNodeID string) ([]string, error) {
 	url := fmt.Sprintf("http://%s/nodes", registryAddress) // URL per ottenere i nodi
 	resp, err := http.Get(url)                             // Esegui la richiesta HTTP
@@ -111,7 +111,7 @@ func getNodeAddresses(registryAddress string, currentNodeID string) ([]string, e
 	return nodeAddresses, nil
 }
 
-// Funzione per contattare altri nodi e fare gossiping
+// contactOtherNodes permette al nodo di contattare altri nodi e fare gossiping
 func (n *Node) contactOtherNodes(registryAddress string) {
 	simulateNetworkDelay(1000, 20)                                // Simula un ritardo medio di 100ms con deviazione standard di 20ms
 	nodeAddresses, err := getNodeAddresses(registryAddress, n.ID) // Ottieni la lista dei nodi
@@ -132,6 +132,7 @@ func (n *Node) contactOtherNodes(registryAddress string) {
 	n.updateCoordinate(rtt, selectedNode)
 }
 
+// pingNode invia un ping al nodo selezionato e ottiene le sue coordinate
 func pingNode(nodeAddress string) (time.Duration, *Context, error) {
 	// Simula un ritardo di rete
 	simulateNetworkDelay(1000, 20)
@@ -157,6 +158,8 @@ func pingNode(nodeAddress string) (time.Duration, *Context, error) {
 	// Restituisci il tempo RTT e il contesto del nodo target
 	return time.Since(start), targetContext, nil
 }
+
+// parseResponseToContext converte la risposta HTTP in un contesto (Context)
 func parseResponseToContext(responseBody string) *Context {
 	parts := strings.Split(responseBody, ",")
 	if len(parts) < 4 {
@@ -174,7 +177,7 @@ func parseResponseToContext(responseBody string) *Context {
 	return NewContextFromValues(NewHVector(x, y, h), InitialError)
 }
 
-// Funzione per aggiornare le coordinate del nodo usando l'algoritmo Vivaldi
+// updateCoordinate aggiorna le coordinate del nodo usando l'algoritmo di Vivaldi
 func (n *Node) updateCoordinate(rtt time.Duration, targetNode string) {
 	// Ottenere il contesto del nodo target (ipotizzando che sia possibile)
 	targetContext := &Context{

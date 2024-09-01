@@ -13,7 +13,7 @@ type NodeInfo struct {
 	ID          string
 	Address     string
 	IP          string
-	LastSeen    time.Time
+	LastSeen    time.Time // Timestamp dell'ultima volta che il nodo è stato visto attivo
 	Coordinates *HVector
 }
 
